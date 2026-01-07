@@ -47,80 +47,92 @@ class GameConsumer(AsyncWebsocketConsumer):
              }))
 
     async def process_move(self, move_uci):
-        # 1. Get Game
-        game = await self.get_game()
-        
-        # 2. Validate Turn
-        # (Simplified turn check, relying on FEN in rules usually, but should check user color)
-        # Checking if user is valid player is good practice
-        
-        # 3. Apply Move
-        new_fen, san, error = await database_sync_to_async(make_move)(game.fen, move_uci)
-        
-        if error:
-            await self.send(text_data=json.dumps({
-                'type': 'error',
-                'message': error
-            }))
-            return
+        try:
+            # 1. Get Game
+            game = await self.get_game()
+            
+            # 2. Validate Turn
+            active_color = game.fen.split(' ')[1] # 'w' or 'b'
+            is_white_turn = (active_color == 'w')
+            
+            if is_white_turn:
+                if game.white_player_id != self.user.id:
+                    print(f"Invalid turn: User {self.user.id} tried to move on White turn")
+                    return
+            else:
+                if game.black_player_id != self.user.id:
+                    print(f"Invalid turn: User {self.user.id} tried to move on Black turn")
+                    return
 
-        # 4. Update Game
-        game.fen = new_fen
-        if game.pgn:
-            game.pgn += f" {san}"
-        else:
-            game.pgn = san
+            # 3. Apply Move
+            new_fen, san, error = await database_sync_to_async(make_move)(game.fen, move_uci)
             
-        if await database_sync_to_async(is_game_over)(new_fen):
-            game.status = 'finished'
-            game.finished_at = timezone.now() # Added timezone import below or just use auto_now if field allows, but manual set better
+            if error:
+                await self.send(text_data=json.dumps({
+                    'type': 'error',
+                    'message': error
+                }))
+                return
+
+            # 4. Update Game
+            game.fen = new_fen
+            if game.pgn:
+                game.pgn += f" {san}"
+            else:
+                game.pgn = san
+                
+            if await database_sync_to_async(is_game_over)(new_fen):
+                game.status = 'finished'
+                game.finished_at = timezone.now()
+                
+                result_str = await database_sync_to_async(get_game_result)(new_fen)
+                
+                score_white = 0.5
+                if result_str == '1-0':
+                    score_white = 1.0
+                    game.winner = game.white_player
+                elif result_str == '0-1':
+                    score_white = 0.0
+                    game.winner = game.black_player
+                
+                if game.white_player and game.black_player:
+                    w_profile = await database_sync_to_async(lambda: game.white_player.profile)()
+                    b_profile = await database_sync_to_async(lambda: game.black_player.profile)()
+                    
+                    new_w, new_b = calculate_elo(w_profile.elo, b_profile.elo, score_white)
+                    
+                    w_profile.elo = new_w
+                    w_profile.games_played += 1
+                    if score_white == 1: w_profile.wins += 1
+                    elif score_white == 0: w_profile.losses += 1
+                    else: w_profile.draws += 1
+                    if new_w > w_profile.highest_elo: w_profile.highest_elo = new_w
+                    
+                    b_profile.elo = new_b
+                    b_profile.games_played += 1
+                    if score_white == 0: b_profile.wins += 1
+                    elif score_white == 1: b_profile.losses += 1
+                    else: b_profile.draws += 1
+                    if new_b > b_profile.highest_elo: b_profile.highest_elo = new_b
+                    
+                    await database_sync_to_async(w_profile.save)()
+                    await database_sync_to_async(b_profile.save)()
+                    
+            await database_sync_to_async(game.save)()
             
-            result_str = await database_sync_to_async(get_game_result)(new_fen)
-            # result_str is '1-0', '0-1', '1/2-1/2'
-            
-            score_white = 0.5
-            if result_str == '1-0':
-                score_white = 1.0
-                game.winner = game.white_player
-            elif result_str == '0-1':
-                score_white = 0.0
-                game.winner = game.black_player
-            
-            # Update Elos
-            if game.white_player and game.black_player:
-                w_profile = await database_sync_to_async(lambda: game.white_player.profile)()
-                b_profile = await database_sync_to_async(lambda: game.black_player.profile)()
-                
-                new_w, new_b = calculate_elo(w_profile.elo, b_profile.elo, score_white)
-                
-                w_profile.elo = new_w
-                w_profile.games_played += 1
-                if score_white == 1: w_profile.wins += 1
-                elif score_white == 0: w_profile.losses += 1
-                else: w_profile.draws += 1
-                if new_w > w_profile.highest_elo: w_profile.highest_elo = new_w
-                
-                b_profile.elo = new_b
-                b_profile.games_played += 1
-                if score_white == 0: b_profile.wins += 1
-                elif score_white == 1: b_profile.losses += 1
-                else: b_profile.draws += 1
-                if new_b > b_profile.highest_elo: b_profile.highest_elo = new_b
-                
-                await database_sync_to_async(w_profile.save)()
-                await database_sync_to_async(b_profile.save)()
-                
-        await database_sync_to_async(game.save)()
-        
-        # 5. Broadcast State
-        game_data = await self.get_game_data()
-        await self.channel_layer.group_send(
-            self.room_group_name,
-            {
-                'type': 'game_update',
-                'game': game_data
-            }
-        )
+            # 5. Broadcast State
+            game_data = await self.get_game_data()
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {
+                    'type': 'game_update',
+                    'game': game_data
+                }
+            )
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            print(f"Error in process_move: {e}")
 
     async def game_update(self, event):
         await self.send(text_data=json.dumps({

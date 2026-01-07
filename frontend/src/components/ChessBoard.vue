@@ -95,36 +95,44 @@ const isDestination = (square) => {
 }
 
 const handleSquareClick = (rowIndex, colIndex) => {
-    const square = getSquareName(rowIndex, colIndex)
-    
-    // Check if clicking a valid move destination (executing move)
-    if (selectedSquare.value && isDestination(square)) {
-        // Find full move string
-        const move = props.legalMoves.find(m => m.startsWith(selectedSquare.value) && m.includes(square))
-        // Handle promotion? If multiple moves match (e.g. e7e8q, e7e8r), we need UI for that.
-        // For MVP, auto-queen or find precise match.
-        // python-chess moves are like 'e7e8q'.
-        // If we just clicked 'e8', we don't know promotion type.
-        // Let's assume Queen promotion for now if multiple exist or just pick first.
+    try {
+        const square = getSquareName(rowIndex, colIndex)
+        const piece = displayedBoard.value[rowIndex][colIndex]
         
-        let chosenMove = move
-        // Simple heuristic: if promotion is possible, it usually has 5 chars.
-        // If we have multiple promotions, we default to Queen (q) usually, or we match exact string if logical.
-        // Let's perform the move.
-        if (move) {
-             emit('move', move)
-             selectedSquare.value = null
+        console.log("Clicked:", square, piece, "Selected:", selectedSquare.value)
+
+        // Check if clicking a valid move destination (executing move)
+        if (selectedSquare.value && isDestination(square)) {
+            // Find full move string
+            const move = props.legalMoves.find(m => m.startsWith(selectedSquare.value) && m.includes(square))
+            console.log("Attempting move:", move)
+            
+            if (move) {
+                emit('move', move)
+                selectedSquare.value = null
+            }
+            return
         }
-        return
-    }
-    
-    // Selecting a piece
-    // Check if this square has any legal moves?
-    const movesFromHere = props.legalMoves.filter(m => m.startsWith(square))
-    if (movesFromHere.length > 0) {
-        selectedSquare.value = square
-    } else {
-        selectedSquare.value = null
+        
+        // Selecting a piece
+        if (piece) {
+            const playerColorCode = props.orientation === 'white' ? 'w' : 'b'
+            if (piece.color !== playerColorCode) {
+                // Cannot select opponent's pieces
+                selectedSquare.value = null
+                return
+            }
+        }
+
+        // Check if this square has any legal moves?
+        const movesFromHere = props.legalMoves.filter(m => m.startsWith(square))
+        if (movesFromHere.length > 0) {
+            selectedSquare.value = square
+        } else {
+            selectedSquare.value = null
+        }
+    } catch (e) {
+        console.error("Board error:", e)
     }
 }
 </script>

@@ -65,7 +65,7 @@ const handleMove = (moveUci) => {
        <ChessBoard 
          :fen="game.fen" 
          :orientation="playerColor"
-         :legalMoves="game.legal_moves"
+         :legal-moves="game.legal_moves"
          @move="handleMove"
        />
        
@@ -75,7 +75,15 @@ const handleMove = (moveUci) => {
                <span class="elo">({{ userStore.user.profile?.elo }})</span>
            </div>
        </div>
+
+       <div v-if="game.status === 'finished'" class="game-over-overlay">
+           <h2>Game Over</h2>
+           <p v-if="game.winner">Winner: {{ game.winner === userStore.user.id ? 'You' : 'Opponent' }}</p>
+           <p v-else>Draw</p>
+           <button class="btn btn-primary" @click="$router.push('/')">Back to Home</button>
+       </div>
     </div>
+
     
     <div class="sidebar">
         <div class="card game-status">
@@ -101,6 +109,24 @@ const handleMove = (moveUci) => {
 .game-container {
     flex: 2;
     max-width: 600px;
+    position: relative;
+}
+
+.game-over-overlay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: rgba(0,0,0,0.85);
+    padding: 2rem;
+    border-radius: var(--radius-md);
+    text-align: center;
+    border: 1px solid var(--color-primary);
+    z-index: 10;
+}
+.game-over-overlay h2 {
+    color: var(--color-primary);
+    margin-top: 0;
 }
 
 .sidebar {
