@@ -25,7 +25,9 @@ SECRET_KEY = 'django-insecure-c5%-8v#ew4_zzl53virmu@r@x&2o1i^0ti3$hc6nz!)u@4^l=r
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    'antichessonline.pythonanywhere.com',
+]
 
 
 # Application definition
