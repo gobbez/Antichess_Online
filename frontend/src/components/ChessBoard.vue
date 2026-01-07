@@ -170,12 +170,14 @@ const handleSquareClick = (rowIndex, colIndex) => {
     user-select: none;
     width: 100%;
     max-width: 600px;
-    aspect-ratio: 1;
+    height: auto;
+    aspect-ratio: 1 / 1;
 }
 
 .board-row {
     display: flex;
     flex: 1;
+    width: 100%;
 }
 
 .square {
@@ -185,6 +187,7 @@ const handleSquareClick = (rowIndex, colIndex) => {
     align-items: center;
     position: relative;
     cursor: pointer;
+    aspect-ratio: 1 / 1; /* Enforce squareness per cell too */
 }
 
 .light {
@@ -209,6 +212,7 @@ const handleSquareClick = (rowIndex, colIndex) => {
     height: 30%;
     background-color: rgba(0, 0, 0, 0.3);
     border-radius: 50%;
+    pointer-events: none; /* Let clicks pass through to square */
 }
 
 .square:hover .move-hint {

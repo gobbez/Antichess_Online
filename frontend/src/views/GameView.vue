@@ -96,9 +96,39 @@ const handleMove = (moveUci) => {
         </div>
     </div>
   </div>
+  
+  <div v-if="gameStore.error" class="error-toast">
+      {{ gameStore.error }}
+  </div>
 </template>
 
 <style scoped>
+.error-toast {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #ff4444;
+    color: white;
+    padding: 1rem 2rem;
+    border-radius: 4px;
+    z-index: 100;
+    font-weight: bold;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    animation: fadeIn 0.3s, fadeOut 0.3s 2.7s forwards;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translate(-50%, -20px); }
+    to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+@keyframes fadeOut {
+    from { opacity: 1; }
+    to { opacity: 0; }
+}
+
+
 .game-view {
     display: flex;
     gap: var(--spacing-lg);

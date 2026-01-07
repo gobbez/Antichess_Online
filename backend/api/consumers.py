@@ -90,33 +90,34 @@ class GameConsumer(AsyncWebsocketConsumer):
                 score_white = 0.5
                 if result_str == '1-0':
                     score_white = 1.0
-                    game.winner = game.white_player
+                    game.winner_id = game.white_player_id
                 elif result_str == '0-1':
                     score_white = 0.0
-                    game.winner = game.black_player
+                    game.winner_id = game.black_player_id
                 
-                if game.white_player and game.black_player:
-                    w_profile = await database_sync_to_async(lambda: game.white_player.profile)()
-                    b_profile = await database_sync_to_async(lambda: game.black_player.profile)()
+                # Update Elos - tricky part, we need profiles asynchronously
+                # We can't access game.white_player.profile directly.
+                w_profile = await database_sync_to_async(lambda: Profile.objects.get(user_id=game.white_player_id))()
+                b_profile = await database_sync_to_async(lambda: Profile.objects.get(user_id=game.black_player_id))()
                     
-                    new_w, new_b = calculate_elo(w_profile.elo, b_profile.elo, score_white)
-                    
-                    w_profile.elo = new_w
-                    w_profile.games_played += 1
-                    if score_white == 1: w_profile.wins += 1
-                    elif score_white == 0: w_profile.losses += 1
-                    else: w_profile.draws += 1
-                    if new_w > w_profile.highest_elo: w_profile.highest_elo = new_w
-                    
-                    b_profile.elo = new_b
-                    b_profile.games_played += 1
-                    if score_white == 0: b_profile.wins += 1
-                    elif score_white == 1: b_profile.losses += 1
-                    else: b_profile.draws += 1
-                    if new_b > b_profile.highest_elo: b_profile.highest_elo = new_b
-                    
-                    await database_sync_to_async(w_profile.save)()
-                    await database_sync_to_async(b_profile.save)()
+                new_w, new_b = calculate_elo(w_profile.elo, b_profile.elo, score_white)
+                
+                w_profile.elo = new_w
+                w_profile.games_played += 1
+                if score_white == 1: w_profile.wins += 1
+                elif score_white == 0: w_profile.losses += 1
+                else: w_profile.draws += 1
+                if new_w > w_profile.highest_elo: w_profile.highest_elo = new_w
+                
+                b_profile.elo = new_b
+                b_profile.games_played += 1
+                if score_white == 0: b_profile.wins += 1
+                elif score_white == 1: b_profile.losses += 1
+                else: b_profile.draws += 1
+                if new_b > b_profile.highest_elo: b_profile.highest_elo = new_b
+                
+                await database_sync_to_async(w_profile.save)()
+                await database_sync_to_async(b_profile.save)()
                     
             await database_sync_to_async(game.save)()
             

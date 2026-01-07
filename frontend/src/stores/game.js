@@ -5,6 +5,7 @@ export const useGameStore = defineStore('game', {
         currentGame: null,
         socket: null,
         isConnected: false,
+        error: null
     }),
     actions: {
         connect(gameId) {
@@ -29,6 +30,8 @@ export const useGameStore = defineStore('game', {
                     this.currentGame = data.game
                 } else if (data.type === 'error') {
                     console.error("Game error:", data.message)
+                    this.error = data.message
+                    setTimeout(() => this.error = null, 3000)
                 }
             }
 
