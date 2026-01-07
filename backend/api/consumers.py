@@ -4,7 +4,7 @@ from django.utils import timezone
 from channels.db import database_sync_to_async
 from django.contrib.auth.models import AnonymousUser
 from .models import Game, Profile, CustomUser
-from .rules import make_move, is_game_over, get_game_result, get_initial_fen, calculate_elo
+from .rules import make_move, is_game_over, get_game_result, get_initial_fen, calculate_elo, get_legal_moves
 from .serializers import GameSerializer
 
 class GameConsumer(AsyncWebsocketConsumer):
@@ -135,7 +135,13 @@ class GameConsumer(AsyncWebsocketConsumer):
     @database_sync_to_async
     def get_game_data(self):
         game = Game.objects.get(id=self.game_id)
-        return GameSerializer(game).data
+        data = GameSerializer(game).data
+        # Attach legal moves for current status
+        if game.status == 'active' or game.status == 'waiting':
+             data['legal_moves'] = get_legal_moves(game.fen)
+        else:
+             data['legal_moves'] = []
+        return data
 
 
 class MatchmakingConsumer(AsyncWebsocketConsumer):
@@ -145,6 +151,14 @@ class MatchmakingConsumer(AsyncWebsocketConsumer):
              await self.close()
              return
         await self.accept()
+        self.waiting_game_group = None
+
+    async def disconnect(self, close_code):
+        if self.waiting_game_group:
+            await self.channel_layer.group_discard(
+                self.waiting_game_group,
+                self.channel_name
+            )
 
     async def receive(self, text_data):
         data = json.loads(text_data)
@@ -152,16 +166,43 @@ class MatchmakingConsumer(AsyncWebsocketConsumer):
         cadence = data.get('cadence')
 
         if command == 'find_game':
-            game = await self.find_match(cadence)
-            if game:
+            game, created = await self.find_match(cadence)
+            
+            if created:
+                # User created a game and is waiting
+                self.waiting_game_group = f'match_{game.id}'
+                await self.channel_layer.group_add(
+                    self.waiting_game_group,
+                    self.channel_name
+                )
+                # Should we tell client we are waiting?
+                # Client is showing spinner, so it's fine.
+            else:
+                # User joined an existing game
+                # Notify the creator (who is in the group)
+                group_name = f'match_{game.id}'
+                await self.channel_layer.group_send(
+                    group_name,
+                    {
+                        'type': 'match_found',
+                        'game_id': game.id
+                    }
+                )
+                
+                # Notify self (the joiner)
                 await self.send(text_data=json.dumps({
                     'type': 'game_found',
                     'game_id': game.id,
-                    'color': 'white' if game.white_player == self.user else 'black'
+                    'color': 'black' # Joiner is usually black if creator was white
                 }))
-            else:
-                # Should not happen with logic below, it either joins or creates
-                pass
+
+    async def match_found(self, event):
+        game_id = event['game_id']
+        await self.send(text_data=json.dumps({
+             'type': 'game_found',
+             'game_id': game_id,
+             'color': 'white'
+        }))
 
     @database_sync_to_async
     def find_match(self, cadence):
@@ -176,14 +217,13 @@ class MatchmakingConsumer(AsyncWebsocketConsumer):
             
             game.status = 'active'
             game.save()
-            return game
+            return game, False
         else:
             # 2. Create new game
-            # Defaulting user to White for simplicity, or random
             game = Game.objects.create(
                 white_player=self.user,
                 cadence=cadence,
                 status='waiting',
                 fen=get_initial_fen()
             )
-            return game
+            return game, True

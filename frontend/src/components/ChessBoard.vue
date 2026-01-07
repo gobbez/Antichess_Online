@@ -1,6 +1,5 @@
 <script setup>
-import { ref, watch, computed } from 'vue'
-import { Chess } from 'chess.js' // We need to install this
+import { ref, computed } from 'vue'
 
 const props = defineProps({
   fen: {
@@ -11,54 +10,57 @@ const props = defineProps({
     type: String,
     default: 'white'
   },
-  interactive: {
-    type: Boolean,
-    default: true
+  legalMoves: {
+    type: Array,
+    default: () => []
   }
 })
 
 const emit = defineEmits(['move'])
 
-// Helpers to simplify board logic
+// Helpers
 const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']
 const ranks = ['8', '7', '6', '5', '4', '3', '2', '1']
 
-const boardState = ref(new Chess(props.fen))
 const selectedSquare = ref(null)
-const legalMoves = ref([])
 
-watch(() => props.fen, (newFen) => {
-  // Antichess FEN loading might need specific handling or just standard FEN if structure matches
-  // python-chess antichess FENs are compatible with standard structure generally
-  try {
-     // Note: standard chess.js might valid antichess FENs but logic is standard.
-     // We only use this for board array, logic is server side mostly OR we need antichess.js
-     // For visualization, standard chess.js load is fine.
-     boardState.value.load(newFen)
-  } catch (e) {
-     console.error("FEN load error", e)
-     // Fallback?
-  }
-})
+const parseFen = (fen) => {
+    const board = []
+    const [placement] = fen.split(' ')
+    const rows = placement.split('/')
+    
+    for (let r = 0; r < 8; r++) {
+        const rowData = []
+        const fenRow = rows[r]
+        let col = 0
+        for (let char of fenRow) {
+            if (isNaN(char)) {
+                // Piece
+                const color = char === char.toUpperCase() ? 'w' : 'b'
+                const type = char.toLowerCase()
+                rowData.push({ type, color })
+                col++
+            } else {
+                // Empty squares
+                const emptyCount = parseInt(char)
+                for (let k = 0; k < emptyCount; k++) {
+                    rowData.push(null)
+                    col++
+                }
+            }
+        }
+        board.push(rowData)
+    }
+    return board
+}
 
 const displayedBoard = computed(() => {
-    // board() returns 8x8 array of { square: 'a8', type: 'r', color: 'b' } or null
-    const board = boardState.value.board()
+    const board = parseFen(props.fen)
     if (props.orientation === 'black') {
         return [...board].reverse().map(row => [...row].reverse())
     }
     return board
 })
-
-const getPieceImage = (piece) => {
-    if (!piece) return null
-    const color = piece.color
-    const type = piece.type.toUpperCase()
-    // Using wikimedia images or similar. Lichess format:
-    // https://raw.githubusercontent.com/ornicar/lila/master/public/piece/cburnett/bP.svg
-    const name = `${color}${type}`
-    return `https://raw.githubusercontent.com/ornicar/lila/master/public/piece/cburnett/${name}.svg`
-}
 
 const getSquareName = (rowIndex, colIndex) => {
     let r = rowIndex
@@ -70,46 +72,59 @@ const getSquareName = (rowIndex, colIndex) => {
     return `${files[c]}${ranks[r]}`
 }
 
-const isSquareHighlighted = (square) => {
-    return legalMoves.value.some(m => m.to === square)
+const getPieceImage = (piece) => {
+    if (!piece) return null
+    const color = piece.color
+    const type = piece.type.toUpperCase()
+    // Using standard piece images
+    const name = `${color}${type}`
+    return `https://raw.githubusercontent.com/ornicar/lila/master/public/piece/cburnett/${name}.svg`
+}
+
+const getPossibleDestinations = (square) => {
+    // Return list of target squares for the selected piece
+    return props.legalMoves
+        .filter(m => m.startsWith(square))
+        .map(m => m.substring(2, 4)) // Extract target square (e2e4 -> e4) - Handling promotions? e7e8q
+}
+
+const isDestination = (square) => {
+    if (!selectedSquare.value) return false
+    const dests = getPossibleDestinations(selectedSquare.value)
+    return dests.includes(square)
 }
 
 const handleSquareClick = (rowIndex, colIndex) => {
-    if (!props.interactive) return
-
     const square = getSquareName(rowIndex, colIndex)
-    const piece = boardState.value.get(square)
-
-    // If we clicked a highlighted square (move)
-    const move = legalMoves.value.find(m => m.to === square)
-    if (move) {
-        // Emit UCI move
-        emit('move', move.from + move.to + (move.promotion || ''))
-        selectedSquare.value = null
-        legalMoves.value = []
+    
+    // Check if clicking a valid move destination (executing move)
+    if (selectedSquare.value && isDestination(square)) {
+        // Find full move string
+        const move = props.legalMoves.find(m => m.startsWith(selectedSquare.value) && m.includes(square))
+        // Handle promotion? If multiple moves match (e.g. e7e8q, e7e8r), we need UI for that.
+        // For MVP, auto-queen or find precise match.
+        // python-chess moves are like 'e7e8q'.
+        // If we just clicked 'e8', we don't know promotion type.
+        // Let's assume Queen promotion for now if multiple exist or just pick first.
+        
+        let chosenMove = move
+        // Simple heuristic: if promotion is possible, it usually has 5 chars.
+        // If we have multiple promotions, we default to Queen (q) usually, or we match exact string if logical.
+        // Let's perform the move.
+        if (move) {
+             emit('move', move)
+             selectedSquare.value = null
+        }
         return
     }
-
-    // Select piece
-    if (piece && piece.color === (boardState.value.turn() === 'w' ? 'w' : 'b')) {
+    
+    // Selecting a piece
+    // Check if this square has any legal moves?
+    const movesFromHere = props.legalMoves.filter(m => m.startsWith(square))
+    if (movesFromHere.length > 0) {
         selectedSquare.value = square
-        // Get valid moves for this piece
-        // Warning: Standard chess.js validation will be WRONG for Antichess.
-        // ideally we get legal moves from server or use a library allowing custom rules.
-        // For MVP: We highlight ALL pseudo-legal or rely on server.
-        // Current Plan requirement: "possible move-cells will become lighter/brighter"
-        // I will use chess.js for highlighting but warn user it's just visual aid or 
-        // Better: Fetch legal moves from PROPS if passed from server? 
-        // Server rules says "User clicks -> possible moves displayed".
-        // Doing this round trip to server for every click is slow.
-        // I will use `chess.js` but modify it or assume for now standard moves overlap enough or I just allow "standard" moves locally and server handles strictness.
-        // Actually, Antichess captures are forced. This is critical.
-        // I'll stick to basic highlight from chess.js for now, acknowledging it might be imperfect without full antichess logic in frontend.
-        
-        legalMoves.value = boardState.value.moves({ square: square, verbose: true })
     } else {
         selectedSquare.value = null
-        legalMoves.value = []
     }
 }
 </script>
@@ -128,12 +143,12 @@ const handleSquareClick = (rowIndex, colIndex) => {
         :class="[
             (rIndex + cIndex) % 2 === 0 ? 'light' : 'dark',
             { 'selected': selectedSquare === getSquareName(rIndex, cIndex) },
-            { 'highlight': isSquareHighlighted(getSquareName(rIndex, cIndex)) }
+            { 'dest': isDestination(getSquareName(rIndex, cIndex)) }
         ]"
         @click="handleSquareClick(rIndex, cIndex)"
       >
         <img v-if="square" :src="getPieceImage(square)" class="piece" />
-        <div v-if="isSquareHighlighted(getSquareName(rIndex, cIndex))" class="move-hint"></div>
+        <div v-if="isDestination(getSquareName(rIndex, cIndex))" class="move-hint"></div>
       </div>
     </div>
   </div>
@@ -146,7 +161,7 @@ const handleSquareClick = (rowIndex, colIndex) => {
     border: 5px solid #484848;
     user-select: none;
     width: 100%;
-    max-width: 600px; /* Responsive container */
+    max-width: 600px;
     aspect-ratio: 1;
 }
 
@@ -173,23 +188,23 @@ const handleSquareClick = (rowIndex, colIndex) => {
 }
 
 .selected {
-    background-color: #7b61ff !important; /* Highlight selection */
+    background-color: rgba(123, 97, 255, 0.5) !important;
 }
 
-.highlight {
-    /* highlight destination */
+.dest {
+    /* Potential destination */
 }
 
 .move-hint {
     position: absolute;
     width: 30%;
     height: 30%;
-    background-color: rgba(0, 0, 0, 0.2);
+    background-color: rgba(0, 0, 0, 0.3);
     border-radius: 50%;
 }
 
-.square:hover.highlight .move-hint {
-    background-color: rgba(0, 0, 0, 0.4);
+.square:hover .move-hint {
+    background-color: rgba(0, 0, 0, 0.5);
 }
 
 .piece {

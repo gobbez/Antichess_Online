@@ -65,6 +65,7 @@ const handleMove = (moveUci) => {
        <ChessBoard 
          :fen="game.fen" 
          :orientation="playerColor"
+         :legalMoves="game.legal_moves"
          @move="handleMove"
        />
        
