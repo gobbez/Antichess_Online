@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import axios from 'axios'
 
-const API_URL = 'http://localhost:8000/api'
+const API_URL = '/api'
 
 export const useUserStore = defineStore('user', {
   state: () => ({
@@ -33,14 +33,14 @@ export const useUserStore = defineStore('user', {
       // For simplicity in DRF with SessionAuth, often we skip CSRF if "SessionAuthentication" is not in DEFAULT_AUTHENTICATION_CLASSES or we use CsrfExempt, or we fetch cookie.
       // Let's assume for now we might hit CSRF issues.
       // I added 'corsheaders'.
-      
+
       await axios.post(`${API_URL}/login/`, { username, password }, { withCredentials: true })
       await this.initialize()
     },
     async register(username, password) {
-       await axios.post(`${API_URL}/register/`, { username, password })
-       // Auto login after register? Or ask to login.
-       await this.login(username, password)
+      await axios.post(`${API_URL}/register/`, { username, password })
+      // Auto login after register? Or ask to login.
+      await this.login(username, password)
     },
     async logout() {
       await axios.post(`${API_URL}/logout/`, {}, { withCredentials: true })

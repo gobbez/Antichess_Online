@@ -12,7 +12,6 @@ const user = computed(() => userStore.user)
       <div class="avatar-section">
         <div class="avatar-placeholder" v-if="!user.profile.avatar">{{ user.username[0].toUpperCase() }}</div>
         <img v-else :src="user.profile.avatar" alt="Avatar" class="avatar" />
-        <button class="btn-small">Change Picture</button>
       </div>
       
       <div class="info-section">
@@ -154,14 +153,10 @@ const user = computed(() => userStore.user)
   border-radius: var(--radius-sm);
 }
 
-.btn-small {
-  margin-top: var(--spacing-sm);
-  background: none;
-  border: 1px solid var(--color-text-muted);
-  color: var(--color-text-muted);
-  padding: 0.25rem 0.5rem;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  font-size: 0.8rem;
+.avatar {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  object-fit: cover;
 }
 </style>

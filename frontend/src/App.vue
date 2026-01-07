@@ -13,7 +13,7 @@ const userStore = useUserStore()
           <h1>
             <router-link to="/">Antichess Online</router-link>
           </h1>
-          <span class="subtitle">The suicide chess variant</span>
+          <span class="subtitle">The lose-all chess variant</span>
         </div>
         
         <nav>

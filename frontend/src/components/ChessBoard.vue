@@ -95,44 +95,37 @@ const isDestination = (square) => {
 }
 
 const handleSquareClick = (rowIndex, colIndex) => {
-    try {
-        const square = getSquareName(rowIndex, colIndex)
-        const piece = displayedBoard.value[rowIndex][colIndex]
+    const square = getSquareName(rowIndex, colIndex)
+    const piece = displayedBoard.value[rowIndex][colIndex]
+    
+    // Check if clicking a valid move destination (executing move)
+    if (selectedSquare.value && isDestination(square)) {
+        // Find full move string
+        const move = props.legalMoves.find(m => m.startsWith(selectedSquare.value) && m.includes(square))
         
-        console.log("Clicked:", square, piece, "Selected:", selectedSquare.value)
-
-        // Check if clicking a valid move destination (executing move)
-        if (selectedSquare.value && isDestination(square)) {
-            // Find full move string
-            const move = props.legalMoves.find(m => m.startsWith(selectedSquare.value) && m.includes(square))
-            console.log("Attempting move:", move)
-            
-            if (move) {
-                emit('move', move)
-                selectedSquare.value = null
-            }
-            return
-        }
-        
-        // Selecting a piece
-        if (piece) {
-            const playerColorCode = props.orientation === 'white' ? 'w' : 'b'
-            if (piece.color !== playerColorCode) {
-                // Cannot select opponent's pieces
-                selectedSquare.value = null
-                return
-            }
-        }
-
-        // Check if this square has any legal moves?
-        const movesFromHere = props.legalMoves.filter(m => m.startsWith(square))
-        if (movesFromHere.length > 0) {
-            selectedSquare.value = square
-        } else {
+        if (move) {
+            emit('move', move)
             selectedSquare.value = null
         }
-    } catch (e) {
-        console.error("Board error:", e)
+        return
+    }
+    
+    // Selecting a piece
+    if (piece) {
+        const playerColorCode = props.orientation === 'white' ? 'w' : 'b'
+        if (piece.color !== playerColorCode) {
+            // Cannot select opponent's pieces
+            selectedSquare.value = null
+            return
+        }
+    }
+
+    // Check if this square has any legal moves?
+    const movesFromHere = props.legalMoves.filter(m => m.startsWith(square))
+    if (movesFromHere.length > 0) {
+        selectedSquare.value = square
+    } else {
+        selectedSquare.value = null
     }
 }
 </script>

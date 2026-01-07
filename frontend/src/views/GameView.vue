@@ -47,12 +47,16 @@ const handleMove = (moveUci) => {
     <div class="game-container">
        <div class="opponent-info" v-if="playerColor === 'white' && game.black_player">
            <div class="user-strip">
+               <img v-if="game.black_player.profile?.avatar" :src="game.black_player.profile.avatar" class="avatar-small" />
+               <div v-else class="avatar-placeholder-small">{{ game.black_player.username[0].toUpperCase() }}</div>
                <span class="username">{{ game.black_player.username }}</span>
                <span class="elo">({{ game.black_player.profile?.elo || 1500 }})</span>
            </div>
        </div>
        <div class="opponent-info" v-else-if="playerColor === 'black' && game.white_player">
            <div class="user-strip">
+               <img v-if="game.white_player.profile?.avatar" :src="game.white_player.profile.avatar" class="avatar-small" />
+               <div v-else class="avatar-placeholder-small">{{ game.white_player.username[0].toUpperCase() }}</div>
                <span class="username">{{ game.white_player.username }}</span>
                <span class="elo">({{ game.white_player.profile?.elo || 1500 }})</span>
            </div>
@@ -71,6 +75,8 @@ const handleMove = (moveUci) => {
        
        <div class="player-info">
            <div class="user-strip">
+               <img v-if="userStore.user.profile?.avatar" :src="userStore.user.profile.avatar" class="avatar-small" />
+               <div v-else class="avatar-placeholder-small">{{ userStore.user.username[0].toUpperCase() }}</div>
                <span class="username">{{ userStore.user.username }}</span>
                <span class="elo">({{ userStore.user.profile?.elo }})</span>
            </div>
@@ -173,6 +179,25 @@ const handleMove = (moveUci) => {
     gap: 10px;
     padding: 10px 0;
     font-size: 1.2rem;
+}
+
+.avatar-small {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.avatar-placeholder-small {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background-color: var(--color-primary);
+    color: #000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-weight: bold;
 }
 
 .username {

@@ -35,10 +35,9 @@ export const useGameStore = defineStore('game', {
                 }
             }
 
-            this.socket.onclose = (event) => {
+            this.socket.onclose = () => {
                 this.isConnected = false
-                console.log("Socket closed:", event)
-                // this.currentGame = null
+                this.currentGame = null
             }
         },
         sendMove(moveUci) {
