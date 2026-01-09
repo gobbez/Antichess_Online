@@ -29,6 +29,11 @@ ALLOWED_HOSTS = [
     'antichessonline.pythonanywhere.com',
     'localhost',
     '127.0.0.1',
+    '.onrender.com',  # Allow Render domains
+]
+
+CSRF_TRUSTED_ORIGINS = [
+    "https://*.onrender.com",
 ]
 
 
