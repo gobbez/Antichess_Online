@@ -13,8 +13,13 @@ export const useGameStore = defineStore('game', {
                 this.socket.close()
             }
 
-            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-            const wsUrl = `${protocol}//localhost:8000/ws/game/${gameId}/`
+            let wsUrl
+            if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                wsUrl = 'ws://127.0.0.1:8000/ws/game/' + gameId + '/'
+            } else {
+                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+                wsUrl = `${protocol}//${window.location.host}/ws/game/${gameId}/`
+            }
 
             this.socket = new WebSocket(wsUrl)
 
