@@ -18,8 +18,13 @@ const startSearch = () => {
   
   searching.value = true
   
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-  socket = new WebSocket(`${protocol}//localhost:8000/ws/matchmaking/`)
+  let wsUrl
+  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    wsUrl = 'ws://127.0.0.1:8000/ws/matchmaking/'
+  } else {
+    wsUrl = 'wss://antichess-online.onrender.com/ws/matchmaking/'
+  }
+  socket = new WebSocket(wsUrl)
   
   socket.onopen = () => {
     socket.send(JSON.stringify({
