@@ -26,7 +26,6 @@ SECRET_KEY = 'django-insecure-c5%-8v#ew4_zzl53virmu@r@x&2o1i^0ti3$hc6nz!)u@4^l=r
 DEBUG = True
 
 ALLOWED_HOSTS = [
-    'antichessonline.pythonanywhere.com',
     'localhost',
     '127.0.0.1',
     '.onrender.com',  # Allow Render domains
@@ -34,7 +33,10 @@ ALLOWED_HOSTS = [
 
 CSRF_TRUSTED_ORIGINS = [
     "https://*.onrender.com",
+    "http://localhost:5173",
 ]
+
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 
 # Application definition

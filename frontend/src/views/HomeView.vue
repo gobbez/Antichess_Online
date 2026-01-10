@@ -18,12 +18,8 @@ const startSearch = () => {
   
   searching.value = true
   
-  let wsUrl
-  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-    wsUrl = 'ws://127.0.0.1:8000/ws/matchmaking/'
-  } else {
-    wsUrl = 'wss://antichess-online.onrender.com/ws/matchmaking/'
-  }
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+  const wsUrl = `${protocol}//${window.location.host}/ws/matchmaking/`
   socket = new WebSocket(wsUrl)
   
   socket.onopen = () => {
@@ -38,6 +34,15 @@ const startSearch = () => {
     if (data.type === 'game_found') {
       router.push(`/game/${data.game_id}`)
     }
+  }
+
+  socket.onclose = () => {
+    searching.value = false
+  }
+
+  socket.onerror = () => {
+    searching.value = false
+    alert("Connection error. Please try again.")
   }
 }
 

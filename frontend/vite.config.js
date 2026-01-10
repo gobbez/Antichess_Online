@@ -21,6 +21,13 @@ export default defineConfig({
         target: 'https://antichess-online.onrender.com',
         changeOrigin: true,
         secure: true,
+        ws: true,
+      },
+      '/ws': {
+        target: 'wss://antichess-online.onrender.com',
+        changeOrigin: true,
+        secure: true,
+        ws: true,
       },
       '/media': {
         target: 'https://antichess-online.onrender.com',
