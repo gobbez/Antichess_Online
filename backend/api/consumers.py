@@ -160,9 +160,9 @@ class GameConsumer(AsyncWebsocketConsumer):
 class MatchmakingConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         self.user = self.scope['user']
-        if self.user == AnonymousUser():
-             await self.close()
-             return
+        # if self.user == AnonymousUser():
+        #      await self.close()
+        #      return
         await self.accept()
         self.waiting_game_group = None
 
